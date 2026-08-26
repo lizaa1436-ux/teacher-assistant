@@ -633,7 +633,7 @@ def main_page():
         if 'ktp_tab' in st.session_state:
             ktp_page(st.session_state.ktp_tab)
         else:
-            ktp_page(0)
+            ktp_page()
     elif menu == "👥 Список класса":
         class_list_page()
     elif menu == "⚙️ Настройки":
@@ -1641,7 +1641,7 @@ def notes_page():
                 st.markdown(f"**{next_note['title']}**")
                 st.markdown(f"📅 {next_note['reminder_date']}")
 
-def ktp_page():
+def ktp_page(default_tab=0):
     st.markdown('<div class="main-header"><h1>📚 Работа с КТП</h1></div>', unsafe_allow_html=True)
     
     ktp_helper.set_calendar_helper(calendar_helper)
