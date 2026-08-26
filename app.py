@@ -1996,13 +1996,7 @@ def class_list_page():
         
         st.info("""
         Загрузите Excel-файл со списком класса.
-        
-        **Поддерживаемые колонки:**
-        • Фамилия, Имя, Отчество
-        • Адрес, Телефон, Email
-        • Дата рождения
-        • Данные родителей
-        • И другие (определяются автоматически)
+        **Поддерживаемые колонки:** Фамилия, Имя, Отчество, Адрес, Телефон, Email и другие.
         """)
         
         class_name = st.text_input("Название класса", placeholder="Например: 10А")
@@ -2014,25 +2008,21 @@ def class_list_page():
                 
                 st.success(f"✅ Загружено {len(df)} учеников")
                 
-                # Показываем нормализованные колонки
                 with st.expander("🔍 Найденные колонки", expanded=False):
                     for original, normalized in normalized_cols.items():
                         st.write(f"'{original}' → '{normalized}'")
                 
-                # Превью
                 st.subheader("📋 Превью (первые 10 строк)")
                 st.dataframe(df.head(10), use_container_width=True)
                 
-                # Сохранение в базу с конвертацией datetime
+                # Сохранение в базу
                 import json
-                from datetime import datetime, date as dt_date
+                from datetime import datetime as dt_module, date as date_module
                 
                 records = df.to_dict('records')
-                
-                # Конвертируем datetime в строку
                 for record in records:
                     for key, value in record.items():
-                        if isinstance(value, (datetime, dt_date)):
+                        if isinstance(value, (dt_module, date_module)):
                             record[key] = value.strftime('%Y-%m-%d')
                 
                 db.save_class_list(
@@ -2043,13 +2033,6 @@ def class_list_page():
                 
             except Exception as e:
                 st.error(f"Ошибка: {e}")
-
-# Сохраняем
-db.save_class_list(
-    st.session_state.user['id'], 
-    class_name, 
-    df_str.to_dict('records')
-)
     
     with tab2:
         st.subheader("Поиск ученика")
@@ -2064,7 +2047,6 @@ db.save_class_list(
             with col2:
                 firstname = st.text_input("🔍 Имя (если нужно)", placeholder="Например: Иван")
             
-            # Опция частичного совпадения
             partial_match = st.checkbox("Частичное совпадение (начинается с...)", value=True)
             
             if lastname:
@@ -2072,31 +2054,26 @@ db.save_class_list(
                 
                 if result is None:
                     st.warning(f"Ученик с фамилией '{lastname}' не найден")
-                
                 elif isinstance(result, dict) and result.get('multiple'):
-                    st.warning(f"Найдено несколько учеников с фамилией '{lastname}'. Уточните имя:")
+                    st.warning(f"Найдено несколько учеников. Уточните имя:")
                     
                     for student in result['students']:
                         full_name = ' '.join([
-                            student.get('Фамилия', ''),
-                            student.get('Имя', ''),
-                            student.get('Отчество', '')
+                            str(student.get('Фамилия', '')),
+                            str(student.get('Имя', '')),
+                            str(student.get('Отчество', ''))
                         ]).strip()
                         
                         if st.button(f"👤 {full_name}", key=f"student_{full_name}", use_container_width=True):
-                            # Поиск по полному имени
                             info = excel_helper.get_student_info(
                                 student.get('Фамилия', ''),
                                 student.get('Имя', '')
                             )
                             if info:
                                 st.markdown(info)
-                
                 else:
-                    # Один ученик
                     st.success("✅ Ученик найден!")
                     st.markdown("### 📋 Информация")
-                    
                     for key, value in result.items():
                         if pd.notna(value) and str(value).strip():
                             st.markdown(f"**{key}:** {value}")
@@ -2108,7 +2085,6 @@ db.save_class_list(
             st.info("Сначала загрузите список класса")
         else:
             st.dataframe(excel_helper.class_data, use_container_width=True)
-            
             st.markdown(f"**Всего учеников:** {excel_helper.get_student_count()}")
 
 def settings_page():
