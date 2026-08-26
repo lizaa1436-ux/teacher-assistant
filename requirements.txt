@@ -1,0 +1,11 @@
+streamlit
+pandas
+openpyxl
+python-docx
+python-dotenv
+workalendar
+python-dateutil
+SpeechRecognition
+pyttsx3
+Pillow
+plotly
