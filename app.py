@@ -2024,14 +2024,18 @@ def class_list_page():
                 st.dataframe(df.head(10), use_container_width=True)
                 
                 # Сохранение в базу
-                db.save_class_list(
-                    st.session_state.user['id'], 
-                    class_name, 
-                    df.to_dict('records')
-                )
-                
-            except Exception as e:
-                st.error(f"Ошибка: {e}")
+                # Конвертируем все datetime в строки
+df_str = df.copy()
+for col in df_str.columns:
+    if pd.api.types.is_datetime64_any_dtype(df_str[col]):
+        df_str[col] = df_str[col].dt.strftime('%Y-%m-%d')
+
+# Сохраняем
+db.save_class_list(
+    st.session_state.user['id'], 
+    class_name, 
+    df_str.to_dict('records')
+)
     
     with tab2:
         st.subheader("Поиск ученика")
