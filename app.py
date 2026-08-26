@@ -2023,12 +2023,26 @@ def class_list_page():
                 st.subheader("📋 Превью (первые 10 строк)")
                 st.dataframe(df.head(10), use_container_width=True)
                 
-                # Сохранение в базу
-                # Конвертируем все datetime в строки
-df_str = df.copy()
-for col in df_str.columns:
-    if pd.api.types.is_datetime64_any_dtype(df_str[col]):
-        df_str[col] = df_str[col].dt.strftime('%Y-%m-%d')
+                # Сохранение в базу с конвертацией datetime
+                import json
+                from datetime import datetime, date as dt_date
+                
+                records = df.to_dict('records')
+                
+                # Конвертируем datetime в строку
+                for record in records:
+                    for key, value in record.items():
+                        if isinstance(value, (datetime, dt_date)):
+                            record[key] = value.strftime('%Y-%m-%d')
+                
+                db.save_class_list(
+                    st.session_state.user['id'], 
+                    class_name, 
+                    records
+                )
+                
+            except Exception as e:
+                st.error(f"Ошибка: {e}")
 
 # Сохраняем
 db.save_class_list(
