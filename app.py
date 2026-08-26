@@ -1987,79 +1987,111 @@ def ktp_page(default_tab=0):
         """)
 
 def class_list_page():
-    """Страница работы со списком класса"""
-    st.markdown('<div class="main-header"><h1>👥 Список класса</h1></div>', 
-                unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>👥 Список класса</h1></div>', unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["📤 Загрузить список", "🔍 Поиск ученика"])
+    tab1, tab2, tab3 = st.tabs(["📤 Загрузить список", "🔍 Поиск ученика", "📋 Все ученики"])
     
     with tab1:
-        st.subheader("Загрузка списка класса из Excel")
+        st.subheader("Загрузка списка класса")
+        
         st.info("""
-        Файл Excel должен содержать колонки:
-        • Фамилия (обязательно)
-        • Имя (обязательно)
-        • Отчество (обязательно)
-        • Адрес
-        • Телефон
+        Загрузите Excel-файл со списком класса.
+        
+        **Поддерживаемые колонки:**
+        • Фамилия, Имя, Отчество
+        • Адрес, Телефон, Email
         • Дата рождения
-        • и другие данные учеников
+        • Данные родителей
+        • И другие (определяются автоматически)
         """)
         
-        class_name = st.text_input("Название класса", placeholder="Например: 9А")
+        class_name = st.text_input("Название класса", placeholder="Например: 10А")
         uploaded_file = st.file_uploader("Выберите Excel-файл", type=['xlsx', 'xls'])
         
         if uploaded_file and class_name:
             try:
-                df = excel_helper.load_class_list(uploaded_file)
+                df, normalized_cols = excel_helper.load_class_list(uploaded_file)
+                
                 st.success(f"✅ Загружено {len(df)} учеников")
                 
-                # Сохранение в базу
-                db.save_class_list(st.session_state.user['id'], class_name, 
-                                 df.to_dict('records'))
+                # Показываем нормализованные колонки
+                with st.expander("🔍 Найденные колонки", expanded=False):
+                    for original, normalized in normalized_cols.items():
+                        st.write(f"'{original}' → '{normalized}'")
                 
-                # Просмотр данных
-                st.subheader("📋 Превью списка")
+                # Превью
+                st.subheader("📋 Превью (первые 10 строк)")
                 st.dataframe(df.head(10), use_container_width=True)
+                
+                # Сохранение в базу
+                db.save_class_list(
+                    st.session_state.user['id'], 
+                    class_name, 
+                    df.to_dict('records')
+                )
+                
             except Exception as e:
-                st.error(f"❌ Ошибка: {str(e)}")
+                st.error(f"Ошибка: {e}")
     
     with tab2:
-        st.subheader("Поиск информации об ученике")
+        st.subheader("Поиск ученика")
         
         if excel_helper.class_data is None:
-            # Попытка загрузить из базы
-            saved_data = db.get_class_list(st.session_state.user['id'], 
-                                          st.text_input("Класс для поиска", key="search_class"))
-            if saved_data:
-                df = pd.DataFrame(json.loads(saved_data['student_data']))
-                excel_helper.class_data = df
-        
-        if excel_helper.class_data is not None:
-            lastname = st.text_input("🔍 Фамилия ученика")
+            st.info("Сначала загрузите список класса")
+        else:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                lastname = st.text_input("🔍 Фамилия", placeholder="Например: Иванов")
+            with col2:
+                firstname = st.text_input("🔍 Имя (если нужно)", placeholder="Например: Иван")
+            
+            # Опция частичного совпадения
+            partial_match = st.checkbox("Частичное совпадение (начинается с...)", value=True)
             
             if lastname:
-                result = excel_helper.search_student(lastname)
+                result = excel_helper.search_student(lastname, firstname, partial_match)
                 
                 if result is None:
-                    st.warning("Ученик не найден")
+                    st.warning(f"Ученик с фамилией '{lastname}' не найден")
+                
                 elif isinstance(result, dict) and result.get('multiple'):
-                    st.warning(f"Найдено несколько учеников с фамилией '{lastname}'")
-                    st.write("Уточните имя:")
+                    st.warning(f"Найдено несколько учеников с фамилией '{lastname}'. Уточните имя:")
                     
                     for student in result['students']:
-                        if st.button(f"{student['Фамилия']} {student['Имя']} {student.get('Отчество', '')}"):
-                            info = excel_helper.get_student_info(lastname, student['Имя'])
+                        full_name = ' '.join([
+                            student.get('Фамилия', ''),
+                            student.get('Имя', ''),
+                            student.get('Отчество', '')
+                        ]).strip()
+                        
+                        if st.button(f"👤 {full_name}", key=f"student_{full_name}", use_container_width=True):
+                            # Поиск по полному имени
+                            info = excel_helper.get_student_info(
+                                student.get('Фамилия', ''),
+                                student.get('Имя', '')
+                            )
                             if info:
                                 st.markdown(info)
+                
                 else:
-                    # Показываем всю информацию
-                    st.subheader(f"📋 Информация об ученике")
+                    # Один ученик
+                    st.success("✅ Ученик найден!")
+                    st.markdown("### 📋 Информация")
+                    
                     for key, value in result.items():
-                        if pd.notna(value):
-                            st.write(f"**{key}:** {value}")
-        else:
+                        if pd.notna(value) and str(value).strip():
+                            st.markdown(f"**{key}:** {value}")
+    
+    with tab3:
+        st.subheader("Все ученики")
+        
+        if excel_helper.class_data is None:
             st.info("Сначала загрузите список класса")
+        else:
+            st.dataframe(excel_helper.class_data, use_container_width=True)
+            
+            st.markdown(f"**Всего учеников:** {excel_helper.get_student_count()}")
 
 def settings_page():
     """Страница настроек"""
