@@ -45,16 +45,18 @@ class ExcelHelper:
     
     def _normalize_columns(self, columns):
         """
-        Нормализовать названия колонок для социального паспорта.
+        Нормализовать названия колонок.
+        Если колонка не определена — используем первую как Фамилию.
         """
         normalized = {}
         
+        # Сначала пробуем определить по названиям
         for col in columns:
             col_str = str(col).strip()
             col_lower = col_str.lower()
             
             # Фамилия
-            if any(word in col_lower for word in ['фамили', 'surname', 'last name', 'lastname', 'fam']):
+            if any(word in col_lower for word in ['фамили', 'surname', 'last name', 'lastname', 'fam', 'фам']):
                 normalized[col] = 'Фамилия'
             
             # Имя
@@ -62,107 +64,53 @@ class ExcelHelper:
                 normalized[col] = 'Имя'
             
             # Отчество
-            elif any(word in col_lower for word in ['отчеств', 'patronymic', 'middle name', 'middlename']):
+            elif any(word in col_lower for word in ['отчеств', 'patronymic', 'middle name']):
                 normalized[col] = 'Отчество'
             
-            # Адрес
-            elif any(word in col_lower for word in ['адрес', 'address', 'место жительства', 'прожива', 'домашний адрес']):
+            # Остальные колонки
+            elif any(word in col_lower for word in ['адрес', 'address']):
                 normalized[col] = 'Адрес'
-            
-            # Телефон
-            elif any(word in col_lower for word in ['телефон', 'phone', 'тел', 'мобиль', 'mobile', 'сот']):
+            elif any(word in col_lower for word in ['телефон', 'phone', 'тел']):
                 normalized[col] = 'Телефон'
-            
-            # Дата рождения
-            elif any(word in col_lower for word in ['дата рождения', 'день рождения', 'birthday', 'birth', 'рожден']):
+            elif any(word in col_lower for word in ['дата', 'рожден', 'birth']):
                 normalized[col] = 'Дата рождения'
-            
-            # ИИН
-            elif any(word in col_lower for word in ['иин', 'iin', 'индивидуальн']):
+            elif any(word in col_lower for word in ['иин', 'iin']):
                 normalized[col] = 'ИИН'
-            
-            # Мать (ФИО матери)
-            elif 'мать' in col_lower or 'мама' in col_lower or 'mother' in col_lower:
-                if 'тел' in col_lower or 'phone' in col_lower:
-                    normalized[col] = 'Телефон матери'
-                elif 'место работы' in col_lower or 'работ' in col_lower:
-                    normalized[col] = 'Место работы матери'
-                else:
-                    normalized[col] = 'ФИО матери'
-            
-            # Отец (ФИО отца)
-            elif 'отец' in col_lower or 'папа' in col_lower or 'father' in col_lower:
-                if 'тел' in col_lower or 'phone' in col_lower:
-                    normalized[col] = 'Телефон отца'
-                elif 'место работы' in col_lower or 'работ' in col_lower:
-                    normalized[col] = 'Место работы отца'
-                else:
-                    normalized[col] = 'ФИО отца'
-            
-            # Родители (общее)
-            elif any(word in col_lower for word in ['родител', 'parent', 'законн']):
+            elif any(word in col_lower for word in ['мать', 'мама']):
+                normalized[col] = 'Мать'
+            elif any(word in col_lower for word in ['отец', 'папа']):
+                normalized[col] = 'Отец'
+            elif any(word in col_lower for word in ['родител', 'parent']):
                 normalized[col] = 'Родители'
-            
-            # Семья
-            elif any(word in col_lower for word in ['семь', 'family']):
-                if 'статус' in col_lower or 'категор' in col_lower:
-                    normalized[col] = 'Статус семьи'
-                elif 'многодетн' in col_lower:
-                    normalized[col] = 'Многодетная семья'
-                elif 'малообеспеч' in col_lower:
-                    normalized[col] = 'Малообеспеченная семья'
-                elif 'неполн' in col_lower:
-                    normalized[col] = 'Неполная семья'
-                else:
-                    normalized[col] = 'Семья'
-            
-            # Социальный статус
-            elif any(word in col_lower for word in ['соц', 'статус', 'категор', 'социальн']):
-                normalized[col] = 'Социальный статус'
-            
-            # Национальность
-            elif any(word in col_lower for word in ['национальн', 'nationality', 'этнос']):
-                normalized[col] = 'Национальность'
-            
-            # Пол
-            elif any(word in col_lower for word in ['пол', 'gender', 'sex']):
-                normalized[col] = 'Пол'
-            
-            # Группа здоровья
-            elif any(word in col_lower for word in ['здоров', 'health', 'физкультур']):
-                normalized[col] = 'Группа здоровья'
-            
-            # Инвалидность
-            elif any(word in col_lower for word in ['инвалид', 'disabilit', 'овз']):
-                normalized[col] = 'Инвалидность/ОВЗ'
-            
-            # Опека
-            elif any(word in col_lower for word in ['опек', 'guardian', 'попечител']):
-                normalized[col] = 'Опека/Попечительство'
-            
-            # Питание
-            elif any(word in col_lower for word in ['питани', 'бесплатн', 'food']):
-                normalized[col] = 'Питание'
-            
-            # Проезд
-            elif any(word in col_lower for word in ['проезд', 'подвоз', 'транспорт']):
-                normalized[col] = 'Проезд/Подвоз'
-            
-            # Email
-            elif any(word in col_lower for word in ['email', 'e-mail', 'почта', 'mail']):
-                normalized[col] = 'Email'
-            
-            # Класс
             elif any(word in col_lower for word in ['класс', 'class']):
                 normalized[col] = 'Класс'
-            
-            # Примечание
-            elif any(word in col_lower for word in ['примечан', 'заметк', 'коммент', 'дополнит']):
-                normalized[col] = 'Примечание'
-            
-            # Если не определили — оставляем как есть
             else:
+                # Оставляем как есть
                 normalized[col] = col_str
+        
+        # ПРОВЕРЯЕМ: если "Фамилия" не найдена — назначаем первую колонку
+        has_lastname = any(v == 'Фамилия' for v in normalized.values())
+        
+        if not has_lastname and len(columns) > 0:
+            # Берем первую колонку как Фамилию
+            first_col = columns[0]
+            normalized[first_col] = 'Фамилия'
+        
+        # Если "Имя" не найдена — назначаем вторую колонку
+        has_firstname = any(v == 'Имя' for v in normalized.values())
+        
+        if not has_firstname and len(columns) > 1:
+            second_col = columns[1]
+            if normalized.get(second_col) == second_col:  # Если не определена
+                normalized[second_col] = 'Имя'
+        
+        # Если "Отчество" не найдена — назначаем третью колонку
+        has_middlename = any(v == 'Отчество' for v in normalized.values())
+        
+        if not has_middlename and len(columns) > 2:
+            third_col = columns[2]
+            if normalized.get(third_col) == third_col:  # Если не определена
+                normalized[third_col] = 'Отчество'
         
         return normalized
     
@@ -240,8 +188,11 @@ class ExcelHelper:
         
         return None
     
-    def _find_column(self, possible_names):
-        """Найти колонку по возможным названиям"""
+   def _find_column(self, possible_names):
+        """
+        Найти колонку по возможным названиям.
+        Если не найдена — возвращает первую колонку.
+        """
         if self.class_data is None:
             return None
         
@@ -250,6 +201,10 @@ class ExcelHelper:
             for name in possible_names:
                 if col_lower == name.lower() or name.lower() in col_lower:
                     return col
+        
+        # Если не нашли — возвращаем первую колонку
+        if len(self.class_data.columns) > 0:
+            return self.class_data.columns[0]
         
         return None
     
