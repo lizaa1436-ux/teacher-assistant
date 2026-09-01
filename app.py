@@ -1007,130 +1007,74 @@ def calendar_page():
                     st.success(f"Всего уроков: {total}")
     
     with tab3:
-        st.subheader("График СОР и СОЧ")
+        st.subheader("🎉 Праздники 2026-2027 учебного года")
         
-        uploaded_file = st.file_uploader("📁 Загрузите КТП", type=['docx'], key="sor_final")
+        # Выбор четверти
+        quarter = st.selectbox(
+            "Четверть:",
+            [1, 2, 3, 4],
+            format_func=lambda x: f"{x}-я четверть",
+            key="holiday_quarter"
+        )
         
-        if uploaded_file:
-            doc = Document(BytesIO(uploaded_file.read()))
+        info = calendar_helper.get_quarter_info(quarter)
+        
+        if info and info['holidays']:
+            # Создаем таблицу праздников
+            holidays_data = []
+            for holiday in info['holidays']:
+                holidays_data.append({
+                    'Дата': holiday['date'].strftime('%d.%m.%Y'),
+                    'День недели': holiday['weekday'],
+                    'Праздник': holiday['name']
+                })
             
-            results = []
+            df_holidays = pd.DataFrame(holidays_data)
+            st.dataframe(df_holidays, use_container_width=True)
             
-            for table in doc.tables:
-                for row_idx in range(1, len(table.rows)):
-                    row = table.rows[row_idx]
-                    
-                    try:
-                        topic = row.cells[2].text
-                        dates = row.cells[5].text
-                        note = row.cells[6].text if len(row.cells) > 6 else ""
-                    except:
-                        continue
-                    
-                    # Объединяем тему и примечание
-                    full_text = topic + " " + note
-                    
-                    # ПОИСК СОР
-                    sor_nums = re.findall(r'сор[^\d]*(\d+)', full_text.lower())
-                    # ПОИСК СОЧ
-                    soch_nums = re.findall(r'соч[^\d]*(\d+)', full_text.lower())
-                    
-                    if sor_nums or soch_nums:
-                        # Разбираем даты по классам
-                        for line in dates.split('\n'):
-                            m = re.match(r'(\d+[а-яА-ЯёЁ]*)\s*-\s*([\d\.\-]+)', line.strip())
-                            if m:
-                                cls = m.group(1)
-                                dt = m.group(2)
-                                
-                                # Определяем четверть
-                                quarter = "Не определена"
-                                try:
-                                    parts = dt.split('.')
-                                    if len(parts) >= 2:
-                                        day = int(parts[0])
-                                        month = int(parts[1])
-                                        d = date(2026 if month >= 9 else 2027, month, day)
-                                        
-                                        if date(2026, 9, 1) <= d <= date(2026, 10, 25):
-                                            quarter = "1 четверть"
-                                        elif date(2026, 11, 2) <= d <= date(2026, 12, 29):
-                                            quarter = "2 четверть"
-                                        elif date(2027, 1, 11) <= d <= date(2027, 3, 21):
-                                            quarter = "3 четверть"
-                                        elif date(2027, 3, 29) <= d <= date(2027, 5, 25):
-                                            quarter = "4 четверть"
-                                except:
-                                    pass
-                                
-                                for num in sor_nums:
-                                    results.append({
-                                        'Класс': cls,
-                                        'Четверть': quarter,
-                                        'Тип': 'СОР',
-                                        'Номер': num,
-                                        'Дата': dt if dt != '-' else '-'
-                                    })
-                                
-                                for num in soch_nums:
-                                    results.append({
-                                        'Класс': cls,
-                                        'Четверть': quarter,
-                                        'Тип': 'СОЧ',
-                                        'Номер': num,
-                                        'Дата': dt if dt != '-' else '-'
-                                    })
-            
-            if results:
-                # Сортировка
-                def sort_key(item):
-                    cls = item['Класс']
-                    dt = item['Дата']
-                    try:
-                        parts = dt.split('.')
-                        if len(parts) >= 2:
-                            d = int(parts[0])
-                            m = int(parts[1])
-                            y = 2026 if m >= 9 else 2027
-                            return (cls, y, m, d)
-                    except:
-                        pass
-                    return (cls, 9999, 99, 99)
+            st.info(f"Всего праздничных дней в {quarter} четверти: {len(info['holidays'])}")
+        else:
+            st.info(f"В {quarter} четверти нет официальных праздников")
+        
+        st.markdown("---")
+        st.subheader("📋 Все праздники года")
+        
+        # Показываем все праздники из календаря
+        all_holidays = []
+        for holiday_date, holiday_info in calendar_helper.holidays_2026_2027.items():
+            all_holidays.append({
+                'Дата': holiday_date.strftime('%d.%m.%Y'),
+                'День недели': holiday_date.strftime('%A'),
+                'Праздник': holiday_info['name']
+            })
+        
+        if all_holidays:
+            # Сортируем по дате
+            all_holidays.sort(key=lambda x: x['Дата'])
+            df_all = pd.DataFrame(all_holidays)
+            st.dataframe(df_all, use_container_width=True)
+        
+        st.markdown("---")
+        st.subheader("🎉 Ближайшие праздники и каникулы")
+        
+        upcoming = calendar_helper.get_next_holidays(5)
+        
+        if upcoming:
+            for event in upcoming:
+                days_left = event['days_left']
+                if days_left == 0:
+                    days_text = "🎉 Сегодня!"
+                elif days_left == 1:
+                    days_text = "Завтра!"
+                else:
+                    days_text = f"Через {days_left} дн."
                 
-                results.sort(key=sort_key)
-                
-                df = pd.DataFrame(results)
-                st.success(f"✅ Найдено {len(df)} записей СОР/СОЧ")
-                st.dataframe(df, use_container_width=True)
-                
-                # Статистика
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("СОР", len(df[df['Тип'] == 'СОР']))
-                with col2:
-                    st.metric("СОЧ", len(df[df['Тип'] == 'СОЧ']))
-                with col3:
-                    st.metric("Классов", len(df['Класс'].unique()))
-                
-                # Excel
-                buffer = io.BytesIO()
-                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                    df.to_excel(writer, sheet_name='Общий график', index=False)
-                    for cls in sorted(df['Класс'].unique()):
-                        cls_df = df[df['Класс'] == cls]
-                        sheet_name = f"Класс_{cls}"[:31]
-                        cls_df.to_excel(writer, sheet_name=sheet_name, index=False)
-                buffer.seek(0)
-                
-                st.download_button(
-                    label="📥 Скачать Excel",
-                    data=buffer,
-                    file_name="график_СОР_СОЧ.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-            else:
-                st.warning("СОР/СОЧ не найдены")
+                st.markdown(f"""
+                **{event['date'].strftime('%d.%m.%Y')}** — {event['name']}  
+                *{days_text}*
+                """)
+        else:
+            st.info("Ближайших праздников не найдено")
     
     with tab4:
         st.subheader("Сводная таблица четвертей")
