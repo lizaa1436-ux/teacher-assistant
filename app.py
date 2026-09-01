@@ -1952,12 +1952,19 @@ def class_list_page():
                 
                 st.success(f"✅ Загружено {len(df)} учеников")
                 
-                with st.expander("🔍 Найденные колонки", expanded=False):
+                # ПОКАЗЫВАЕМ ВСЕ КОЛОНКИ ДЛЯ ДИАГНОСТИКИ
+                with st.expander("📋 Все колонки в файле", expanded=True):
+                    st.write("**Оригинальные названия колонок:**")
+                    for col in df.columns:
+                        st.write(f"  - '{col}'")
+                    
+                    st.write("**Нормализованные:**")
                     for original, normalized in normalized_cols.items():
-                        st.write(f"'{original}' → '{normalized}'")
+                        st.write(f"  '{original}' → '{normalized}'")
                 
-                st.subheader("📋 Превью (первые 10 строк)")
-                st.dataframe(df.head(10), use_container_width=True)
+                # Превью данных
+                st.subheader("📋 Первые 5 строк")
+                st.dataframe(df.head(5), use_container_width=True)
                 
                 # Сохранение в базу
                 import json
