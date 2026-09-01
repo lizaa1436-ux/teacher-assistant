@@ -1998,6 +1998,7 @@ def class_list_page():
                 
                 if result is None:
                     st.warning(f"Ученик с фамилией '{lastname}' не найден")
+                
                 elif isinstance(result, dict) and result.get('multiple'):
                     st.warning(f"Найдено несколько учеников. Уточните имя:")
                     
@@ -2015,10 +2016,26 @@ def class_list_page():
                             )
                             if info:
                                 st.markdown(info)
+                
                 else:
+                    # Один ученик — показываем ВСЕ данные
                     st.success("✅ Ученик найден!")
-                    st.markdown("### 📋 Информация")
+                    st.markdown("---")
+                    
+                    # ФИО крупно
+                    full_name = ' '.join([
+                        str(result.get('Фамилия', '')),
+                        str(result.get('Имя', '')),
+                        str(result.get('Отчество', ''))
+                    ]).strip()
+                    
+                    st.markdown(f"### 👤 {full_name}")
+                    st.markdown("---")
+                    
+                    # Все остальные данные
                     for key, value in result.items():
+                        if key in ['Фамилия', 'Имя', 'Отчество']:
+                            continue
                         if pd.notna(value) and str(value).strip():
                             st.markdown(f"**{key}:** {value}")
     
