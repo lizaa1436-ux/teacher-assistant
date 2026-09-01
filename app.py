@@ -1991,102 +1991,59 @@ def class_list_page():
         if excel_helper.class_data is None:
             st.info("Сначала загрузите список класса")
         else:
-            # ДИАГНОСТИКА
-            with st.expander("🔍 Диагностика данных", expanded=False):
-                st.write(f"Всего учеников: {excel_helper.get_student_count()}")
-                st.write(f"Колонки: {excel_helper.get_column_names()}")
-                
-                # Показываем первые 5 фамилий
-                lastname_col = excel_helper._find_column(['Фамилия'])
-                if lastname_col:
-                    st.write(f"Колонка с фамилиями: '{lastname_col}'")
-                    st.write("Первые 5 фамилий:")
-                    for val in excel_helper.class_data[lastname_col].head(5):
-                        st.write(f"  - '{val}'")
-                else:
-                    st.error("❌ Колонка 'Фамилия' не найдена!")
-                    st.write("Доступные колонки:")
-                    for col in excel_helper.class_data.columns:
-                        st.write(f"  - '{col}'")
+            df = excel_helper.class_data
+            lastname_col = excel_helper._find_column(['Фамилия'])
             
-            col1, col2 = st.columns(2)
+            # Кнопка показать все данные
+            if st.button("📋 Показать все данные", use_container_width=True):
+                st.dataframe(df, use_container_width=True)
             
-            with col1:
-                lastname = st.text_input("🔍 Фамилия", placeholder="Например: Иванов")
-            with col2:
-                firstname = st.text_input("🔍 Имя (если нужно)", placeholder="Например: Иван")
+            st.markdown("---")
             
-            partial_match = st.checkbox("Частичное совпадение (начинается с...)", value=True)
+            lastname = st.text_input("🔍 Фамилия")
             
             if lastname:
-                # Прямой поиск для диагностики
-                lastname_col = excel_helper._find_column(['Фамилия'])
+                search_term = lastname.strip().lower()
                 
-                if lastname_col:
-                    df = excel_helper.class_data
+                # Поиск по ВСЕМ колонкам (вдруг фамилия не в первой)
+                found_rows = []
+                
+                for idx, row in df.iterrows():
+                    row_text = ' '.join([str(v) for v in row.values if pd.notna(v)]).lower()
+                    if search_term in row_text:
+                        found_rows.append(idx)
+                
+                if found_rows:
+                    st.success(f"Найдено: {len(found_rows)}")
                     
-                    # Пробуем разные варианты поиска
-                    lastname_clean = lastname.strip().lower()
-                    
-                    # 1. Точное совпадение
-                    exact_match = df[df[lastname_col].astype(str).str.lower() == lastname_clean]
-                    
-                    # 2. Начинается с
-                    starts_match = df[df[lastname_col].astype(str).str.lower().str.startswith(lastname_clean)]
-                    
-                    # 3. Содержит
-                    contains_match = df[df[lastname_col].astype(str).str.lower().str.contains(lastname_clean, na=False)]
-                    
-                    st.write(f"Точное: {len(exact_match)}, Начинается с: {len(starts_match)}, Содержит: {len(contains_match)}")
-                    
-                    # Используем contains для поиска
-                    result_df = contains_match if len(contains_match) > 0 else starts_match
-                    
-                    if len(result_df) == 0:
-                        st.warning(f"Ученик с фамилией '{lastname}' не найден")
-                        st.write("Проверьте написание фамилии")
-                    elif len(result_df) == 1:
-                        # Один ученик
-                        student = result_df.iloc[0].to_dict()
-                        st.success("✅ Ученик найден!")
+                    for idx in found_rows:
+                        student = df.iloc[idx].to_dict()
                         
+                        # Ищем ФИО
                         full_name = ' '.join([
                             str(student.get('Фамилия', '')),
                             str(student.get('Имя', '')),
                             str(student.get('Отчество', ''))
                         ]).strip()
                         
+                        if not full_name.strip():
+                            # Если ФИО не найдено - показываем первые 3 значения
+                            first_vals = []
+                            for key, value in student.items():
+                                if pd.notna(value) and str(value).strip():
+                                    first_vals.append(str(value))
+                                if len(first_vals) >= 3:
+                                    break
+                            full_name = ' '.join(first_vals)
+                        
                         st.markdown(f"### 👤 {full_name}")
                         st.markdown("---")
                         
                         for key, value in student.items():
-                            if key in ['Фамилия', 'Имя', 'Отчество']:
-                                continue
                             if pd.notna(value) and str(value).strip():
                                 st.markdown(f"**{key}:** {value}")
-                    
-                    else:
-                        # Несколько учеников
-                        st.warning(f"Найдено {len(result_df)} учеников:")
-                        
-                        for idx, (_, row) in enumerate(result_df.iterrows()):
-                            full_name = ' '.join([
-                                str(row.get('Фамилия', '')),
-                                str(row.get('Имя', '')),
-                                str(row.get('Отчество', ''))
-                            ]).strip()
-                            
-                            if st.button(f"👤 {full_name}", key=f"student_{idx}_{full_name}", use_container_width=True):
-                                student = row.to_dict()
-                                st.markdown(f"### 👤 {full_name}")
-                                st.markdown("---")
-                                for key, value in student.items():
-                                    if key in ['Фамилия', 'Имя', 'Отчество']:
-                                        continue
-                                    if pd.notna(value) and str(value).strip():
-                                        st.markdown(f"**{key}:** {value}")
                 else:
-                    st.error("❌ Колонка 'Фамилия' не найдена в данных!")
+                    st.warning(f"'{lastname}' не найден ни в одной колонке")
     
     with tab3:
         st.subheader("Все ученики")
